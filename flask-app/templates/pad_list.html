@@ -52,7 +52,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    <button class="action-btn" onclick="window.location.href='/match/{{ api_name|urlencode }}/{{ pad.pad_num }}'">
+                    <button class="action-btn" onclick="window.location.href='{{ request.script_root }}/match/{{ api_name|urlencode }}/{{ pad.pad_num }}'">
                         {% if pad.status == 'complete' %}View{% elif pad.status == 'partial' %}Continue{% else %}Start{% endif %}
                     </button>
                 </td>
@@ -63,7 +63,7 @@
 
     <!-- Gallery Button -->
     <div class="pad-list-actions" style="margin-top: 20px; text-align: center;">
-        <button class="gallery-btn" onclick="window.location.href='/gallery?api={{ api_name|urlencode }}'"
+        <button class="gallery-btn" onclick="window.location.href='{{ request.script_root }}/gallery?api={{ api_name|urlencode }}'"
                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                        color: white;
                        padding: 12px 30px;

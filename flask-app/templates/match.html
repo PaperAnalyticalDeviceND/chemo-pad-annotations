@@ -170,7 +170,7 @@ function selectCandidate(annotId, candidateId) {
         candidateId = null;
     }
 
-    fetch('/api/save_match', {
+    fetch('{{ request.script_root }}/api/save_match', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -202,7 +202,7 @@ function markNoMatch(annotId, isCurrentlyNoMatch) {
     // If isCurrentlyNoMatch is true, we send neither card_id nor is_no_match
     // which triggers the unmatch logic in the backend
 
-    fetch('/api/save_match', {
+    fetch('{{ request.script_root }}/api/save_match', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(requestBody)
@@ -219,7 +219,7 @@ function markNoMatch(annotId, isCurrentlyNoMatch) {
 }
 
 function saveNote(annotId, noteText) {
-    fetch('/api/save_note', {
+    fetch('{{ request.script_root }}/api/save_note', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -236,29 +236,29 @@ function saveNote(annotId, noteText) {
 }
 
 function exportPad() {
-    window.location.href = '/api/export';
+    window.location.href = '{{ request.script_root }}/api/export';
 }
 
 function skipToNext() {
     {% if next_pad %}
     // Navigate to next PAD# in sequence
-    window.location.href = '/match/{{ api_name|urlencode }}/{{ next_pad }}';
+    window.location.href = '{{ request.script_root }}/match/{{ api_name|urlencode }}/{{ next_pad }}';
     {% else %}
     // No more PADs, go back to list
-    window.location.href = '/api/{{ api_name|urlencode }}';
+    window.location.href = '{{ request.script_root }}/api/{{ api_name|urlencode }}';
     {% endif %}
 }
 
 function skipToPrevious() {
     {% if prev_pad %}
     // Navigate to previous PAD# in sequence
-    window.location.href = '/match/{{ api_name|urlencode }}/{{ prev_pad }}';
+    window.location.href = '{{ request.script_root }}/match/{{ api_name|urlencode }}/{{ prev_pad }}';
     {% endif %}
 }
 
 function backToList() {
     // Navigate back to PAD list for this API/drug
-    window.location.href = '/api/{{ api_name|urlencode }}';
+    window.location.href = '{{ request.script_root }}/api/{{ api_name|urlencode }}';
 }
 
 // Highlight the row that was just updated after page reload

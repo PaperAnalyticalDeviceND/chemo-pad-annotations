@@ -28,7 +28,7 @@ async function createBackup(event) {
     backupBtn.style.pointerEvents = 'none';
 
     try {
-        const response = await fetch('/api/backup', {
+        const response = await fetch((window.SCRIPT_ROOT || '') + '/api/backup', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

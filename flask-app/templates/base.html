@@ -16,30 +16,31 @@
             <h2 class="nav-title">ChemoPAD Annotation Matcher</h2>
             <div class="nav-links">
                 {% if request.endpoint == 'match_page' %}
-                <a href="/api/{{ api_name|urlencode }}" class="nav-link">← Back to {{ api_name }}</a>
+                <a href="{{ request.script_root }}/api/{{ api_name|urlencode }}" class="nav-link">← Back to {{ api_name }}</a>
                 <span class="nav-separator">|</span>
                 {% endif %}
                 {% if request.endpoint != 'dashboard' %}
-                <a href="/" class="nav-link nav-home-link">🏠 Dashboard</a>
+                <a href="{{ request.script_root }}/" class="nav-link nav-home-link">🏠 Dashboard</a>
                 <span class="nav-separator">|</span>
                 {% endif %}
-                <a href="/gallery" class="nav-link">🔬 Annotation Review</a>
+                <a href="{{ request.script_root }}/gallery" class="nav-link">🔬 Annotation Review</a>
                 <span class="nav-separator">|</span>
-                <a href="/cards-gallery" class="nav-link">📦 Lab Card Inventory</a>
+                <a href="{{ request.script_root }}/cards-gallery" class="nav-link">📦 Lab Card Inventory</a>
                 <span class="nav-separator">|</span>
-                <a href="/api/export" class="nav-link">Export Data</a>
+                <a href="{{ request.script_root }}/api/export" class="nav-link">Export Data</a>
                 <span class="nav-separator">|</span>
                 <a href="#" id="backup-btn" class="nav-link" onclick="createBackup(event)">💾 Backup</a>
                 <span class="nav-separator">|</span>
-                <a href="/help" class="nav-link">Help</a>
+                <a href="{{ request.script_root }}/help" class="nav-link">Help</a>
                 <span class="nav-separator">|</span>
-                <a href="/logout" class="nav-link">Logout</a>
+                <a href="{{ request.script_root }}/logout" class="nav-link">Logout</a>
             </div>
         </div>
     </nav>
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+    <script>window.SCRIPT_ROOT = "{{ request.script_root }}";</script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

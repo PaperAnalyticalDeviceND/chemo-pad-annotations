@@ -10,7 +10,7 @@
     <h2>Select API/Drug</h2>
     <div class="api-grid">
         {% for api in apis %}
-        <div class="api-card" onclick="window.location.href='/api/{{ api.name|urlencode }}'">
+        <div class="api-card" onclick="window.location.href='{{ request.script_root }}/api/{{ api.name|urlencode }}'">
             <div class="api-name">{{ api.name }}</div>
             <div class="api-stats">
                 <div class="stat-icon">📊</div>
@@ -25,7 +25,7 @@
         {% endfor %}
 
         <!-- Annotation Review Card -->
-        <div class="api-card gallery-card" onclick="window.location.href='/gallery'">
+        <div class="api-card gallery-card" onclick="window.location.href='{{ request.script_root }}/gallery'">
             <div class="api-name">🔬 Annotation Review</div>
             <div class="api-stats">
                 <div class="stat-icon">🔍</div>
@@ -38,7 +38,7 @@
         </div>
 
         <!-- Lab Card Inventory Card -->
-        <div class="api-card gallery-card" onclick="window.location.href='/cards-gallery'">
+        <div class="api-card gallery-card" onclick="window.location.href='{{ request.script_root }}/cards-gallery'">
             <div class="api-name">📦 Lab Card Inventory</div>
             <div class="api-stats">
                 <div class="stat-icon">{{ stats.total_project_cards }}</div>
@@ -58,7 +58,7 @@
 
 <script>
 // Load overall stats
-fetch('/api/stats')
+fetch('{{ request.script_root }}/api/stats')
     .then(res => res.json())
     .then(data => {
         document.getElementById('overall-stats').innerHTML = `
@@ -68,7 +68,7 @@ fetch('/api/stats')
     });
 
 function exportData() {
-    window.location.href = '/api/export';
+    window.location.href = '{{ request.script_root }}/api/export';
 }
 </script>
 {% endblock %}
