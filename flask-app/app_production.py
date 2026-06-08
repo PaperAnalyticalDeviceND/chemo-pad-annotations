@@ -478,6 +478,7 @@ def export_data():
     global matches, notes
     matches = database.get_all_matches()
     notes = database.get_all_notes()
+    invalid_cards = database.get_all_invalid_cards()
 
     # Create a file backup before export
     database.create_file_backup('export')
@@ -516,6 +517,11 @@ def export_data():
     # Add URL field (will be generated from processed_file_location)
     export_df['matched_url'] = None
 
+    # Add card status (Valid / With Issue) for the matched card, from the issue flags.
+    # Only populated when there is a matched db id; left blank for no_match / unreviewed rows.
+    export_df['matched_card_status'] = None
+    export_df['matched_card_issue'] = None
+
     # Add notes column for student observations
     export_df['notes'] = None
 
@@ -538,6 +544,13 @@ def export_data():
 
             # Add sample_id right after matched_id
             export_df.at[orig_idx, 'matched_sample_id'] = card_data.get('sample_id')
+
+            # Card status from the issue flags: "With Issue" if flagged, else "Valid"
+            if int(card_id) in invalid_cards:
+                export_df.at[orig_idx, 'matched_card_status'] = 'With Issue'
+                export_df.at[orig_idx, 'matched_card_issue'] = invalid_cards[int(card_id)]
+            else:
+                export_df.at[orig_idx, 'matched_card_status'] = 'Valid'
 
             # Add other fields
             for field in project_fields:
