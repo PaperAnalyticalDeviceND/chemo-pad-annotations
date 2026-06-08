@@ -270,9 +270,12 @@ def cleanup_old_backups(backup_dir, backup_type):
     for filename in os.listdir(backup_dir):
         if filename.startswith(f"{backup_type}_") and filename.endswith('.db'):
             filepath = os.path.join(backup_dir, filename)
-            backups.append((filepath, os.path.getmtime(filepath)))
+            backups.append((filepath, filename))
 
-    # Sort by modification time (newest first)
+    # Sort by filename (newest first) — the timestamp is embedded in the
+    # filename and is always unique. mtime can collide because shutil.copy2
+    # preserves the source file's mtime, which would let cleanup delete the
+    # backup that was just created.
     backups.sort(key=lambda x: x[1], reverse=True)
 
     # Remove old backups
