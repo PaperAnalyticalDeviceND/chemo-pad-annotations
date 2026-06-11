@@ -12,6 +12,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Annotation condition attributes that can be individually flagged as low-confidence
+# during matching. Keys are the stable identifiers stored in match_uncertainty; values
+# are the corresponding annotation column names. Uncertainty attaches to one attribute
+# of a matched row, never to the match (annot_id <-> card_id) itself.
+UNCERTAINTY_FIELDS = {
+    'camera': 'Camera',
+    'lighting': 'Lighting (lightbox, benchtop, benchtop dark)',
+    'background': 'black/white background',
+}
+
 def get_db_path():
     """Get the database file path"""
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -73,6 +83,18 @@ def init_db():
                 card_id INTEGER PRIMARY KEY,
                 reason TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # Create match_uncertainty table: per-(annotation, attribute) low-confidence
+        # flags. Additive and independent of the matches table, so the match itself
+        # stays a confident assertion and confident rows carry no flags.
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS match_uncertainty (
+                annot_id INTEGER NOT NULL,
+                field TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (annot_id, field)
             )
         ''')
 
@@ -369,6 +391,35 @@ def is_card_invalid(card_id):
     with get_db() as conn:
         result = conn.execute('SELECT 1 FROM invalid_cards WHERE card_id = ?', (card_id,)).fetchone()
         return result is not None
+
+def set_uncertainty(annot_id, field, uncertain):
+    """Flag (or unflag) a single attribute of an annotation as low-confidence"""
+    with get_db() as conn:
+        if uncertain:
+            conn.execute(
+                'INSERT OR IGNORE INTO match_uncertainty (annot_id, field) VALUES (?, ?)',
+                (annot_id, field))
+        else:
+            conn.execute(
+                'DELETE FROM match_uncertainty WHERE annot_id = ? AND field = ?',
+                (annot_id, field))
+        conn.commit()
+        logger.info(f"Set uncertainty: annot_id={annot_id}, field={field}, uncertain={uncertain}")
+
+def clear_uncertainty(annot_id):
+    """Remove all uncertainty flags for an annotation (e.g. when it is unmatched)"""
+    with get_db() as conn:
+        conn.execute('DELETE FROM match_uncertainty WHERE annot_id = ?', (annot_id,))
+        conn.commit()
+
+def get_all_uncertainty():
+    """Get all uncertainty flags as a dictionary of {annot_id: set(fields)}"""
+    uncertainty = {}
+    with get_db() as conn:
+        cursor = conn.execute('SELECT annot_id, field FROM match_uncertainty')
+        for row in cursor:
+            uncertainty.setdefault(row['annot_id'], set()).add(row['field'])
+    return uncertainty
 
 # Initialize database when module is imported
 init_db()

@@ -30,14 +30,38 @@
                     <div class="field">
                         <label>Camera:</label>
                         <span>{{ annotation.Camera or 'N/A' }}</span>
+                        {% if annotation.matched_id %}
+                        <label class="uncertain-toggle" title="Mark camera as a low-confidence best guess (the match stays confident)">
+                            <input type="checkbox"
+                                   onchange="saveUncertainty({{ annotation.annot_id }}, 'camera', this.checked)"
+                                   {% if 'camera' in annotation.uncertain_fields %}checked{% endif %}>
+                            uncertain
+                        </label>
+                        {% endif %}
                     </div>
                     <div class="field">
                         <label>Lighting:</label>
                         <span>{{ annotation['Lighting (lightbox, benchtop, benchtop dark)'] or 'N/A' }}</span>
+                        {% if annotation.matched_id %}
+                        <label class="uncertain-toggle" title="Mark lighting as a low-confidence best guess (the match stays confident)">
+                            <input type="checkbox"
+                                   onchange="saveUncertainty({{ annotation.annot_id }}, 'lighting', this.checked)"
+                                   {% if 'lighting' in annotation.uncertain_fields %}checked{% endif %}>
+                            uncertain
+                        </label>
+                        {% endif %}
                     </div>
                     <div class="field">
                         <label>Background:</label>
                         <span>{{ annotation['black/white background'] or 'N/A' }}</span>
+                        {% if annotation.matched_id %}
+                        <label class="uncertain-toggle" title="Mark background as a low-confidence best guess (the match stays confident)">
+                            <input type="checkbox"
+                                   onchange="saveUncertainty({{ annotation.annot_id }}, 'background', this.checked)"
+                                   {% if 'background' in annotation.uncertain_fields %}checked{% endif %}>
+                            uncertain
+                        </label>
+                        {% endif %}
                     </div>
                     <div class="field">
                         <label>mg concentration:</label>
@@ -214,6 +238,24 @@ function markNoMatch(annotId, isCurrentlyNoMatch) {
             window.location.reload();
         } else {
             alert('Error: ' + data.error);
+        }
+    });
+}
+
+function saveUncertainty(annotId, field, isUncertain) {
+    fetch('{{ request.script_root }}/api/save_uncertainty', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            annot_id: annotId,
+            field: field,
+            uncertain: isUncertain
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            alert('Error saving uncertainty: ' + (data.error || ''));
         }
     });
 }

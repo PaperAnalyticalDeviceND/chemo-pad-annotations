@@ -10,6 +10,7 @@
         <select id="status-filter" onchange="filterTable()">
             <option value="all">All Status</option>
             <option value="complete">Complete ✅</option>
+            <option value="uncertain">Complete w/ uncertainty ⚑</option>
             <option value="partial">Partial ⚠️</option>
             <option value="not_started">Not Started ❌</option>
         </select>
@@ -29,7 +30,7 @@
         </thead>
         <tbody>
             {% for pad in pads %}
-            <tr data-status="{{ pad.status }}">
+            <tr data-status="{{ pad.status }}" data-uncertain="{{ 'true' if pad.uncertain_rows > 0 else 'false' }}">
                 <td>{{ pad.pad_num }}</td>
                 <td>{{ pad.sample }}</td>
                 <td>{{ pad.matched_rows }}/{{ pad.total_rows }}</td>
@@ -44,7 +45,11 @@
                 <td>💬 {{ pad.notes_count }}</td>
                 <td>
                     {% if pad.status == 'complete' %}
+                        {% if pad.uncertain_rows > 0 %}
+                        <span class="status-complete" title="Complete, but {{ pad.uncertain_rows }} matched row(s) have a low-confidence attribute">✅ Complete <span class="uncertain-flag">({{ pad.uncertain_rows }} uncertain)</span></span>
+                        {% else %}
                         <span class="status-complete">✅ Complete</span>
+                        {% endif %}
                     {% elif pad.status == 'partial' %}
                         <span class="status-partial">⚠️ {{ pad.matched_rows }}/{{ pad.total_rows }}</span>
                     {% else %}
@@ -87,7 +92,8 @@ function filterTable() {
         const rowStatus = row.dataset.status;
 
         const matchesSearch = text.includes(search);
-        const matchesStatus = status === 'all' || rowStatus === status;
+        const matchesStatus = status === 'all' ||
+            (status === 'uncertain' ? row.dataset.uncertain === 'true' : rowStatus === status);
 
         row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
     });

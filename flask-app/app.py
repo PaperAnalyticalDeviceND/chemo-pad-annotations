@@ -181,6 +181,7 @@ def pad_list(api_name):
     global matches, notes
     matches = database.get_all_matches()
     notes = database.get_all_notes()
+    uncertainty = database.get_all_uncertainty()
 
     api_data = annotations_df[annotations_df['API'] == api_name]
 
@@ -191,6 +192,10 @@ def pad_list(api_name):
 
         # Count rows with notes
         notes_count = sum(1 for annot_id in pad_rows['annot_id'] if annot_id in notes)
+
+        # Count matched rows that carry at least one low-confidence attribute flag
+        uncertain_rows = sum(1 for annot_id in pad_rows['annot_id']
+                             if annot_id in matches and uncertainty.get(annot_id))
 
         # Get sample name from first row
         sample = pad_rows.iloc[0]['Sample'] if pd.notna(pad_rows.iloc[0]['Sample']) else ''
@@ -217,6 +222,7 @@ def pad_list(api_name):
             'candidates_selected': selected_candidates,
             'candidates_available': total_candidates,
             'candidates_deleted': deleted_candidates,
+            'uncertain_rows': uncertain_rows,
             'status': 'complete' if matched_count == len(pad_rows) else
                      'partial' if matched_count > 0 else 'not_started'
         })
@@ -245,6 +251,7 @@ def match_page(api_name, pad_num):
     global matches, notes
     matches = database.get_all_matches()
     notes = database.get_all_notes()
+    uncertainty = database.get_all_uncertainty()
 
     # Get all annotation rows for this PAD#
     pad_annotations = annotations_df[
@@ -271,6 +278,7 @@ def match_page(api_name, pad_num):
         row_dict['matched_id'] = matched_id if matched_id != "no_match" else None
         row_dict['is_no_match'] = matched_id == "no_match"
         row_dict['notes'] = notes.get(annot_id, '')
+        row_dict['uncertain_fields'] = list(uncertainty.get(annot_id, set()))
         rows_data.append(row_dict)
 
     # Convert candidates to dict for JSON
@@ -368,11 +376,13 @@ def save_match():
                 return jsonify({'success': False, 'error': 'ID already matched to another annotation'})
             database.save_match(annot_id, card_id)
         elif is_no_match:
-            # Mark as no match
+            # Mark as no match - no card, so attribute uncertainty no longer applies
             database.save_match(annot_id, "no_match")
+            database.clear_uncertainty(annot_id)
         else:
-            # Unmatching - delete the entry
+            # Unmatching - delete the entry and any attribute uncertainty flags
             database.save_match(annot_id, None)
+            database.clear_uncertainty(annot_id)
 
         # Reload matches for in-memory cache
         global matches
@@ -423,6 +433,29 @@ def save_note():
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Error saving note: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/save_uncertainty', methods=['POST'])
+@login_required
+def save_uncertainty():
+    """Flag/unflag a specific attribute of a matched annotation as low-confidence.
+
+    Uncertainty is per-(annot_id, field): it marks one attribute label as a best
+    guess without weakening the match itself or the other attributes.
+    """
+    data = request.json
+    annot_id = int(data['annot_id'])
+    field = data.get('field')
+    uncertain = bool(data.get('uncertain', False))
+
+    if field not in database.UNCERTAINTY_FIELDS:
+        return jsonify({'success': False, 'error': f'Unknown field: {field}'})
+
+    try:
+        database.set_uncertainty(annot_id, field, uncertain)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error saving uncertainty: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/backup', methods=['POST'])
@@ -479,6 +512,7 @@ def export_data():
     matches = database.get_all_matches()
     notes = database.get_all_notes()
     invalid_cards = database.get_all_invalid_cards()
+    uncertainty = database.get_all_uncertainty()
 
     # Create a file backup before export
     database.create_file_backup('export')
@@ -522,6 +556,11 @@ def export_data():
     export_df['matched_card_status'] = None
     export_df['matched_card_issue'] = None
 
+    # Add per-attribute uncertainty flags (TRUE/FALSE). Only populated for matched rows;
+    # marks an attribute label as a low-confidence best guess without weakening the match.
+    for fkey in database.UNCERTAINTY_FIELDS:
+        export_df[f'{fkey}_uncertain'] = None
+
     # Add notes column for student observations
     export_df['notes'] = None
 
@@ -551,6 +590,11 @@ def export_data():
                 export_df.at[orig_idx, 'matched_card_issue'] = invalid_cards[int(card_id)]
             else:
                 export_df.at[orig_idx, 'matched_card_status'] = 'Valid'
+
+            # Per-attribute uncertainty for this matched row: TRUE if flagged, else FALSE
+            flagged = uncertainty.get(annot_id, set())
+            for fkey in database.UNCERTAINTY_FIELDS:
+                export_df.at[orig_idx, f'{fkey}_uncertain'] = 'TRUE' if fkey in flagged else 'FALSE'
 
             # Add other fields
             for field in project_fields:
