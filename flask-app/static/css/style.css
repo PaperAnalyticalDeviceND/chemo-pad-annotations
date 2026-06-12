@@ -349,6 +349,34 @@ header h1, header h2 {
 
 .field span {
     color: #333;
+    margin-left: auto;
+}
+
+/* Per-attribute "uncertain" toggle shown next to Camera / Lighting / Background
+   on a matched row. Marks the attribute as a low-confidence best guess; the
+   match itself stays confident. */
+.uncertain-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 12px;
+    font-weight: 400 !important;
+    font-size: 0.8em;
+    color: #b8860b !important;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.uncertain-toggle input {
+    cursor: pointer;
+    margin: 0;
+}
+
+/* "(N uncertain)" indicator next to a Complete status in the PAD list */
+.uncertain-flag {
+    color: #b8860b;
+    font-size: 0.85em;
+    font-weight: 600;
 }
 
 .edit-btn {

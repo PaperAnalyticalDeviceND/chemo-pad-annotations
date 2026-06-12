@@ -66,6 +66,16 @@ def import_export_data(export_file):
 
     print(f"\n🔍 Analyzing data in old export...")
 
+    # Per-attribute uncertainty columns (camera_uncertain, lighting_uncertain, ...).
+    # Older exports won't have them; in that case they are simply absent and skipped.
+    uncertain_cols = {fkey: f'{fkey}_uncertain' for fkey in database.UNCERTAINTY_FIELDS}
+
+    def _present(v):
+        return pd.notna(v) and str(v).strip() != ''
+
+    def _is_true(v):
+        return str(v).strip().upper() == 'TRUE'
+
     # Find rows with data
     work_rows = []
 
@@ -87,13 +97,21 @@ def import_export_data(export_file):
         has_match = pd.notna(matched_id) and str(matched_id).strip() != ''
         has_notes = pd.notna(notes) and str(notes).strip() != ''
 
+        # Read per-attribute uncertainty flags where the cell is populated
+        uncertainty = {}
+        for fkey, col in uncertain_cols.items():
+            val = row.get(col)
+            if _present(val):
+                uncertainty[fkey] = _is_true(val)
+
         if has_match or has_notes:
             work_rows.append({
                 'annot_id': annot_id,
                 'matched_id': matched_id,
                 'notes': notes,
                 'has_match': has_match,
-                'has_notes': has_notes
+                'has_notes': has_notes,
+                'uncertainty': uncertainty
             })
 
     print(f"  Found {len(work_rows)} rows with data")
@@ -106,7 +124,8 @@ def import_export_data(export_file):
         'skipped_annot_id': 0,
         'skipped_card_id': 0,
         'imported_matches': 0,
-        'imported_notes': 0
+        'imported_notes': 0,
+        'imported_uncertainty': 0
     }
 
     invalid_annot_ids = []
@@ -155,12 +174,18 @@ def import_export_data(export_file):
             notes_to_import = str(notes).strip()
             stats['valid_notes'] += 1
 
+        # Uncertainty only applies to a real card match (not no_match / notes-only)
+        uncertainty_to_import = {}
+        if isinstance(match_to_import, int):
+            uncertainty_to_import = work.get('uncertainty', {})
+
         # Queue for import if we have valid data
         if match_to_import is not None or notes_to_import is not None:
             import_queue.append({
                 'annot_id': annot_id,
                 'match': match_to_import,
-                'notes': notes_to_import
+                'notes': notes_to_import,
+                'uncertainty': uncertainty_to_import
             })
 
     # Report validation results
@@ -192,6 +217,7 @@ def import_export_data(export_file):
     print(f"\n📊 Ready to import:")
     print(f"  - {sum(1 for item in import_queue if item['match'] is not None)} matches")
     print(f"  - {sum(1 for item in import_queue if item['notes'] is not None)} notes")
+    print(f"  - {sum(sum(1 for f in item['uncertainty'].values() if f) for item in import_queue)} uncertainty flags")
 
     response = input("\nProceed with import? (yes/no): ").strip().lower()
 
@@ -212,6 +238,15 @@ def import_export_data(export_file):
                 stats['imported_matches'] += 1
             except Exception as e:
                 print(f"  ❌ Error importing match for annot_id {annot_id}: {e}")
+
+        # Import per-attribute uncertainty flags (reflects TRUE/FALSE from the CSV)
+        for fkey, flag in item.get('uncertainty', {}).items():
+            try:
+                database.set_uncertainty(annot_id, fkey, flag)
+                if flag:
+                    stats['imported_uncertainty'] += 1
+            except Exception as e:
+                print(f"  ❌ Error importing uncertainty for annot_id {annot_id}: {e}")
 
         # Import note
         if item['notes'] is not None:
@@ -235,6 +270,7 @@ def import_export_data(export_file):
     print(f"\nImported:")
     print(f"  - {stats['imported_matches']} matches")
     print(f"  - {stats['imported_notes']} notes")
+    print(f"  - {stats['imported_uncertainty']} uncertainty flags")
 
     if stats['skipped_annot_id'] > 0 or stats['skipped_card_id'] > 0:
         print(f"\nSkipped:")
@@ -246,10 +282,12 @@ def import_export_data(export_file):
     # Verify final state
     final_matches = database.get_all_matches()
     final_notes = database.get_all_notes()
+    final_uncertainty = database.get_all_uncertainty()
 
     print(f"\nFinal database state:")
     print(f"  - Total matches: {len(final_matches)}")
     print(f"  - Total notes: {len(final_notes)}")
+    print(f"  - Annotations with uncertainty flags: {len(final_uncertainty)}")
 
 if __name__ == '__main__':
     # Default export file
